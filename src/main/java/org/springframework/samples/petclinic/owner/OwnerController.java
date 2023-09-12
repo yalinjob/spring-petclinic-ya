@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 import jakarta.validation.Valid;
+import org.thymeleaf.util.StringUtils;
 
 /**
  * @author Juergen Hoeller
@@ -84,12 +86,23 @@ class OwnerController {
 		return "owners/findOwners";
 	}
 
+
 	@GetMapping("/owners")
 	public String processFindForm(@RequestParam(defaultValue = "1") int page, Owner owner, BindingResult result,
 			Model model) {
 		// allow parameterless GET request for /owners to return all records
 		if (owner.getLastName() == null) {
-			owner.setLastName(""); // empty string signifies broadest possible search
+			List<Owner> ownerList = owners.findAllWithPetsAndVisits();
+			model.addAttribute("owners", ownerList);
+
+			return "owners/ownersList";
+		}
+
+		// empty owner search for all records without n+1 queries
+		if (StringUtils.isEmpty(owner.getLastName())){
+			List<Owner> ownerList = owners.findAllWithPetsAndVisits();
+			Page<Owner> ownerPageNP1 = new PageImpl<>(ownerList);
+			return addPaginationModel(0, model, ownerPageNP1);
 		}
 
 		// find owners by last name
@@ -112,11 +125,10 @@ class OwnerController {
 
 	private String addPaginationModel(int page, Model model, Page<Owner> paginated) {
 		model.addAttribute("listOwners", paginated);
-		List<Owner> listOwners = paginated.getContent();
 		model.addAttribute("currentPage", page);
 		model.addAttribute("totalPages", paginated.getTotalPages());
 		model.addAttribute("totalItems", paginated.getTotalElements());
-		model.addAttribute("listOwners", listOwners);
+		model.addAttribute("listOwners",paginated);
 		return "owners/ownersList";
 	}
 
