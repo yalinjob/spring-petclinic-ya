@@ -18,6 +18,7 @@ on:
       - main
       - master
       - dev
+
   pull_request:
     branches:
       - main
@@ -30,15 +31,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
 
       - name: Download SCA Resolver
         run: |
@@ -46,11 +42,16 @@ jobs:
           tar -xzvf ScaResolver-linux64.tar.gz
           rm -rf ScaResolver-linux64.tar.gz
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
       - name: Maven Build
         run: mvn clean install -Dcheckstyle.skip=true
 
-
-      - name: Login to Docker Hub with Access Token
+      - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build Docker images with Docker Compose
@@ -58,14 +59,18 @@ jobs:
 
       - name: Tag Docker images for Docker Hub
         run: |
-         docker tag service1 yalina/spring_petclinic_ya:myapp
-         docker tag service2 ${DOCKER_USERNAME}/service2:latest
-  
-      - name: Pull Docker image from Docker Hub
-        run: docker pull yalina/spring_petclinic_ya:myapp
+          docker tag mysql yalina/mysql:latest
+          docker tag postgres yalina/postgres:latest
 
-      - name: Tag Docker image for JFrog Artifactory
-        run: docker tag yalina/spring_petclinic_ya:myapp soleng.jfrog.io/devnet-ya--virtual-version1/myapp:latest
+      - name: Push Docker images to Docker Hub
+        run: |
+          docker push yalina/mysql:latest
+          docker push yalina/postgres:latest
+
+      - name: Tag Docker images for JFrog Artifactory
+        run: |
+          docker tag yalina/mysql:latest soleng.jfrog.io/devnet-ya--virtual-version1/mysql:latest
+          docker tag yalina/postgres:latest soleng.jfrog.io/devnet-ya--virtual-version1/postgres:latest
 
       - name: Install JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
@@ -84,13 +89,10 @@ jobs:
           echo "JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}"
           curl -u ${{ secrets.JF_USER }}:${{ secrets.JF_ACCESS_TOKEN }} ${{ secrets.JF_URL }}/artifactory/api/system/ping
 
-      - name: Login to JFrog Artifactory Docker registry
+      - name: Log in to JFrog Artifactory Docker registry
         run: echo "${{ secrets.JF_ACCESS_TOKEN }}" | docker login ${{ secrets.JF_URL }} --username="${{ secrets.JF_USER }}" --password-stdin
 
-      - name: Push Docker image to JFrog Artifactory
-        run: docker push  soleng.jfrog.io/devnet-ya--virtual-version1/myapp:latest
-        #run: docker push yalina/yalina:myapp  devnet-ya--virtual-version1/myapp:latest
-
-
-        
-
+      - name: Push Docker images to JFrog Artifactory
+        run: |
+          docker push soleng.jfrog.io/devnet-ya--virtual-version1/mysql:latest
+          docker push soleng.jfrog.io/devnet-ya--virtual-version1/postgres:latest
