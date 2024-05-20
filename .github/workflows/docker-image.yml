@@ -1,0 +1,89 @@
+name: One Scan_Spring
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+        type: choice
+        options:
+          - info
+          - warning
+          - debug
+
+  push:
+    branches:
+      - main
+      - master
+      - dev
+  pull_request:
+    branches:
+      - main
+      - master
+      - dev
+
+env:
+  JFROG_CLI_LOG_LEVEL: 'DEBUG'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download SCA Resolver
+        run: |
+          wget https://sca-downloads.s3.amazonaws.com/cli/latest/ScaResolver-linux64.tar.gz
+          tar -xzvf ScaResolver-linux64.tar.gz
+          rm -rf ScaResolver-linux64.tar.gz
+
+      - name: Maven Build
+        run: mvn clean install
+
+      - name: Login to Docker Hub with Access Token
+        run: echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: yalina/spring_petclinic_ya:myapp
+
+      - name: Pull Docker image from Docker Hub
+        run: docker pull yalina/spring_petclinic_ya:myapp
+
+      - name: Tag Docker image for JFrog Artifactory
+        run: docker tag yalina/spring_petclinic_ya:myapp soleng.jfrog.io/devnet-ya--virtual-version1/myapp:latest
+
+      - name: Install JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: '2.56.1'
+
+      - name: Verify JFrog CLI Installation
+        run: jfrog -v
+
+      - name: Check DNS Resolution
+        run: nslookup soleng.jfrog.io
+
+      - name: Verify JFrog Artifactory User and Token
+        run: |
+          echo "JF_USER: ${{ secrets.JF_USER }}"
+          echo "JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}"
+          curl -u ${{ secrets.JF_USER }}:${{ secrets.JF_ACCESS_TOKEN }} ${{ secrets.JF_URL }}/artifactory/api/system/ping
+
+      - name: Login to JFrog Artifactory Docker registry
+        run: echo "${{ secrets.JF_ACCESS_TOKEN }}" | docker login ${{ secrets.JF_URL }} --username="${{ secrets.JF_USER }}" --password-stdin
+
+      - name: Push Docker image to JFrog Artifactory
+        run: docker push  soleng.jfrog.io/devnet-ya--virtual-version1/myapp:latest
+        #run: docker push yalina/yalina:myapp  devnet-ya--virtual-version1/myapp:latest
+
+
+        
+
