@@ -53,14 +53,14 @@ jobs:
       - name: Login to Docker Hub with Access Token
         run: echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: yalina/spring_petclinic_ya:myapp
+      - name: Build Docker images with Docker Compose
+        run: docker-compose build
 
+      - name: Tag Docker images for Docker Hub
+        run: |
+         docker tag service1 yalina/spring_petclinic_ya:myapp
+         docker tag service2 ${DOCKER_USERNAME}/service2:latest
+  
       - name: Pull Docker image from Docker Hub
         run: docker pull yalina/spring_petclinic_ya:myapp
 
