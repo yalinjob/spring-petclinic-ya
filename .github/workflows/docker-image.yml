@@ -34,6 +34,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+
+
       - name: Download SCA Resolver
         run: |
           wget https://sca-downloads.s3.amazonaws.com/cli/latest/ScaResolver-linux64.tar.gz
